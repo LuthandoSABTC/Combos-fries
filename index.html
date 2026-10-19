@@ -543,6 +543,20 @@ async function checkPaid(){
 $("#inv-make").onclick = makeInvoice;
 $("#inv-copy").onclick = () => invoice && copyText(invoice.pr, $("#inv-sats"), "Invoice copied");
 
+/* ===== New-order alert to the owner's phone (ntfy) ===== */
+const NTFY_TOPIC = "combosfries-srhio2jdx3fne5t2";
+let lastAlert = "";
+$("#send").addEventListener("click", () => {
+  const r = buildMessage(); if (!r) return;
+  if (r.m === lastAlert) return;            // don't alert twice for the same order
+  lastAlert = r.m;
+  const paid = invoice && invoice.status === "PAID" && invoice.rand === r.total;
+  const where = $("#mode-deliver").checked ? "Delivery" : "Collect";
+  const title = "New order " + rand(r.total) + " - " + where + (paid ? " - BTC PAID" : "");
+  const url = "https://ntfy.sh/" + NTFY_TOPIC + "?title=" + encodeURIComponent(title) + "&tags=fries&priority=high";
+  try { fetch(url, {method:"POST", body:r.m, keepalive:true, mode:"no-cors"}).catch(()=>{}); } catch(e){}
+});
+
 let toastT;
 function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,1800); }
 

@@ -218,6 +218,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
       <label><input type="radio" name="pay" id="pay-cash" value="Cash" checked><span>Cash</span></label>
       <label><input type="radio" name="pay" id="pay-btc" value="Bitcoin"><span>⚡ Bitcoin</span></label>
       <label><input type="radio" name="pay" id="pay-card" value="Card"><span>💳 Card</span></label>
+      <label><input type="radio" name="pay" id="pay-eft" value="EFT"><span>🏦 EFT</span></label>
     </div>
     <button class="btc-btn" id="btc-open" type="button">⚡ Pay with Bitcoin</button>
     <div class="btc" id="btc-panel" hidden>
@@ -247,6 +248,21 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
         </ol>
         <div class="addr"><code id="btc-addr"></code><button class="btn" id="btc-copy" type="button">Copy</button></div>
       </details>
+    </div>
+    <div class="btc eft" id="eft-panel" hidden>
+      <div class="btc-top">
+        <div><small>Amount to pay</small><strong id="eft-amt">R0</strong></div>
+        <span class="pill eft-pill">EFT</span>
+      </div>
+      <dl class="bank">
+        <dt>Bank</dt><dd>Capitec</dd>
+        <dt>Account holder</dt><dd>LL Ndabambi</dd>
+        <dt>Account number</dt><dd><span id="eft-acc">2439151889</span> <button class="btn mini" id="eft-copy" type="button">Copy</button></dd>
+        <dt>Account type</dt><dd>Savings</dd>
+        <dt>Branch code</dt><dd>470010</dd>
+        <dt>Reference</dt><dd><strong id="eft-ref">Your name + cell</strong> <button class="btn mini" id="eft-ref-copy" type="button">Copy</button></dd>
+      </dl>
+      <p class="note">Use the reference above so we know it's your payment. Send your proof of payment with your WhatsApp order. We start frying once the payment shows.</p>
     </div>
     <div class="btc card-pay" id="card-panel" hidden>
       <div class="btc-top">
@@ -284,7 +300,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
           <table class="hours" id="hours"></table>
         </div>
       </div>
-      <p class="fine">Combos Fries · Hot · Fresh · Delicious · We accept cash, ⚡ Bitcoin and 💳 card</p>
+      <p class="fine">Combos Fries · Hot · Fresh · Delicious · We accept cash, ⚡ Bitcoin, 💳 card and 🏦 EFT</p>
     </footer>
   </section>
 
@@ -395,7 +411,7 @@ function buildMessage(){
   const name = $("#c-name").value.trim(), phone = $("#c-phone").value.trim(), note = $("#c-note").value.trim();
   if ($("#mode-deliver").checked){ const ad = $("#c-addr").value.trim(); m += "\n🚚 Delivery to: " + (ad || "(address to follow)"); }
   else m += "\n🏃 Collect";
-  m += $("#pay-btc").checked ? (invoice && invoice.status==="PAID" && invoice.rand===total ? "\n⚡ PAID with Bitcoin ✅ (" + invoice.sats + " sats, invoice …" + invoice.pr.slice(-8) + ")" : "\n⚡ Paying with Bitcoin (Lightning)") : $("#pay-card").checked ? (cardPaid && cardPaid.total===total ? "\n💳 PAID by card ✅ (Yoco ref " + cardPaid.ref + ")" : "\n💳 Paying by CARD: please send me a Yoco payment link for " + rand(total)) : false ? "\n🏦 Paying by EFT (ref: " + eftRef() + "), proof of payment attached" : "\n💵 Paying cash";
+  m += $("#pay-btc").checked ? (invoice && invoice.status==="PAID" && invoice.rand===total ? "\n⚡ PAID with Bitcoin ✅ (" + invoice.sats + " sats, invoice …" + invoice.pr.slice(-8) + ")" : "\n⚡ Paying with Bitcoin (Lightning)") : $("#pay-card").checked ? (cardPaid && cardPaid.total===total ? "\n💳 PAID by card ✅ (Yoco ref " + cardPaid.ref + ")" : "\n💳 Paying by CARD: please send me a Yoco payment link for " + rand(total)) : $("#pay-eft").checked ? "\n🏦 Paying by EFT (ref: " + eftRef() + "), proof of payment attached" : "\n💵 Paying cash";
   if (name) m += "\nName: " + name;
   if (phone) m += "\nCell: " + phone + (combos ? ` (stamp ${combos} combo${combos>1?"s":""} please)` : "");
   if (note) m += "\nNote: " + note;
@@ -403,6 +419,7 @@ function buildMessage(){
 }
 function update(){
   const r = buildMessage(), send = $("#send");
+  $("#eft-ref").textContent = eftRef();
   if (!r){
     $("#slip").textContent = "Add something from the menu to start your order.";
     $("#total").textContent = "R0"; $("#count").textContent = "No items yet";
@@ -413,6 +430,7 @@ function update(){
   $("#total").textContent = rand(r.total);
   $("#btc-amt").textContent = rand(r.total);
   $("#card-amt").textContent = rand(r.total);
+  $("#eft-amt").textContent = rand(r.total);
   $("#count").textContent = r.count + (r.count===1?" item":" items");
   send.removeAttribute("aria-disabled");
   send.href = "https://wa.me/" + SHOP_WHATSAPP + "?text=" + encodeURIComponent(r.m);
@@ -457,10 +475,12 @@ function showBtc(on){
   update();
 }
 $("#btc-open").onclick = () => { $("#pay-btc").checked = true; showBtc(true); $("#btc-panel").scrollIntoView({behavior:"smooth", block:"start"}); };
-document.querySelectorAll('input[name="pay"]').forEach(r=>r.addEventListener("change",()=>{ $("#card-panel").hidden = !$("#pay-card").checked; showBtc($("#pay-btc").checked); }));
+document.querySelectorAll('input[name="pay"]').forEach(r=>r.addEventListener("change",()=>{ $("#card-panel").hidden = !$("#pay-card").checked; $("#eft-panel").hidden = !$("#pay-eft").checked; showBtc($("#pay-btc").checked); }));
 function copyText(text, node, msg){
   navigator.clipboard.writeText(text).then(()=>toast(msg)).catch(()=>{ const sel=getSelection(), rg=document.createRange(); rg.selectNodeContents(node); sel.removeAllRanges(); sel.addRange(rg); toast("Selected. Copy it now"); });
 }
+$("#eft-copy").onclick = () => copyText("2439151889", $("#eft-acc"), "Account number copied");
+$("#eft-ref-copy").onclick = () => copyText(eftRef(), $("#eft-ref"), "Reference copied");
 $("#btc-copy").onclick = async () => {
   try { await navigator.clipboard.writeText(LIGHTNING_ADDRESS); toast("Address copied"); }
   catch { const sel = getSelection(), rg = document.createRange(); rg.selectNodeContents($("#btc-addr")); sel.removeAllRanges(); sel.addRange(rg); toast("Selected. Copy it now"); }
@@ -545,7 +565,7 @@ $("#send").addEventListener("click", () => {
   lastAlert = r.m;
   const paid = invoice && invoice.status === "PAID" && invoice.rand === r.total;
   const where = $("#mode-deliver").checked ? "Delivery" : "Collect";
-  const title = "New order " + rand(r.total) + " - " + where + (paid ? " - BTC PAID" : (cardPaid && cardPaid.total===r.total) ? " - CARD PAID" : $("#pay-card").checked ? " - CARD: send Yoco link" : "");
+  const title = "New order " + rand(r.total) + " - " + where + (paid ? " - BTC PAID" : (cardPaid && cardPaid.total===r.total) ? " - CARD PAID" : $("#pay-card").checked ? " - CARD: send Yoco link" : $("#pay-eft").checked ? " - EFT: check bank" : "");
   const url = "https://ntfy.sh/" + NTFY_TOPIC + "?title=" + encodeURIComponent(title) + "&tags=fries&priority=high";
   try { fetch(url, {method:"POST", body:r.m, keepalive:true, mode:"no-cors"}).catch(()=>{}); } catch(e){}
 });
@@ -598,7 +618,7 @@ setTimeout(function handleCardReturn(){
   if (!st) return;
   history.replaceState(null, "", location.pathname);
   if (!restoreCart()) return;
-  $("#pay-card").checked = true; $("#card-panel").hidden = false; $("#btc-panel").hidden = true; $("#btc-open").hidden = false;
+  $("#pay-card").checked = true; $("#card-panel").hidden = false; $("#eft-panel").hidden = true; $("#btc-panel").hidden = true; $("#btc-open").hidden = false;
   const r = buildMessage();
   if (st === "paid" && r){
     cardPaid = {ref: p.get("ref") || "", total: r.total};

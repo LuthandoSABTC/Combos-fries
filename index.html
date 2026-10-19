@@ -29,6 +29,7 @@ img{max-width:100%}
 .note a{color:inherit}
 .deal{box-shadow:0 0 0 4px var(--chilli)}
 .deal-tag{display:inline-block;background:var(--gold);color:var(--gold-ink);font-weight:800;font-size:.75rem;padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.bar .tot small.eta{white-space:nowrap;opacity:1;color:var(--gold);font-weight:700;margin-top:2px}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -322,7 +323,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
 
 <div class="bar" id="bar">
   <div class="in">
-    <div class="tot"><small id="count">No items yet</small><strong id="total">R0</strong></div>
+    <div class="tot"><small id="count">No items yet</small><strong id="total">R0</strong><small class="eta" id="eta"></small></div>
     <a class="wa" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Send on WhatsApp</a>
   </div>
 </div>
@@ -402,7 +403,7 @@ SAUCES.forEach((s,i)=>{
   sauceBox.append(l);
 });
 ["#c-name","#c-phone","#c-note","#c-addr"].forEach(s=>$(s).addEventListener("input",update));
-document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{ $("#addr-wrap").hidden = $("#area-wrap").hidden = !$("#mode-deliver").checked; update(); }));
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{ setEta(); $("#addr-wrap").hidden = $("#area-wrap").hidden = !$("#mode-deliver").checked; update(); }));
 document.querySelectorAll('input[name="area"]').forEach(r=>r.addEventListener("change",update));
 $("#shop-num").textContent = "069 541 2295";
 
@@ -462,9 +463,19 @@ function saNow(){
   return {day, mins: (+p.hour)*60 + (+p.minute)};
 }
 const toMin = t => { const [h,m] = t.split(":").map(Number); return h*60+m; };
+/* Waiting times (minutes) */
+const READY_MIN = {collect:30, delivery:60};
+let shopOpen = true;
+function setEta(){
+  const el = $("#eta"); if (!el) return;
+  el.textContent = !shopOpen ? "⏰ Pre-order for later"
+    : $("#mode-deliver").checked ? "🚚 Delivery in ~" + READY_MIN.delivery + " min"
+    : "🏃 Ready in ~" + READY_MIN.collect + " min";
+}
 function renderStatus(){
   const {day, mins} = saNow(), h = HOURS[day], el = $("#status");
   let open = h && mins >= toMin(h[0]) && mins < toMin(h[1]);
+  shopOpen = !!open; setEta();
   if (open){ el.textContent = "Open now · until " + h[1]; el.className = "status"; }
   else {
     let msg = "Closed now";

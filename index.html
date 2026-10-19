@@ -22,6 +22,8 @@ img{max-width:100%}
 .food figcaption h2{margin:0;color:#fff;font-size:1.4rem}
 .food figcaption span{color:#ffd9a8;font-size:.85rem;font-weight:600}
 .plain-h{margin-top:14px}
+.card-pay{border-color:#1f6feb}
+.card-pill{background:#1f6feb;color:#fff}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -216,6 +218,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
       <label><input type="radio" name="pay" id="pay-cash" value="Cash" checked><span>Cash</span></label>
       <label><input type="radio" name="pay" id="pay-btc" value="Bitcoin"><span>⚡ Bitcoin</span></label>
       <label><input type="radio" name="pay" id="pay-eft" value="EFT"><span>🏦 EFT</span></label>
+      <label><input type="radio" name="pay" id="pay-card" value="Card"><span>💳 Card</span></label>
     </div>
     <button class="btc-btn" id="btc-open" type="button">⚡ Pay with Bitcoin</button>
     <div class="btc" id="btc-panel" hidden>
@@ -245,6 +248,16 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
         </ol>
         <div class="addr"><code id="btc-addr"></code><button class="btn" id="btc-copy" type="button">Copy</button></div>
       </details>
+    </div>
+    <div class="btc card-pay" id="card-panel" hidden>
+      <div class="btc-top">
+        <div><small>Amount to pay</small><strong id="card-amt">R0</strong></div>
+        <span class="pill card-pill">Card · Yoco</span>
+      </div>
+      <button class="btn solid" id="card-pay" type="button">💳 Pay now by card</button>
+      <p class="note" id="card-msg">You'll pay on Yoco's secure page with your bank card, Apple Pay or Google Pay, then come straight back here.</p>
+      <div class="paid" id="card-paid" hidden>✅ Card payment done! Now tap <b>Send on WhatsApp</b> so we start frying.</div>
+      <p class="note">Your card details go only to Yoco. We never see them.</p>
     </div>
     <div class="btc eft" id="eft-panel" hidden>
       <div class="btc-top">
@@ -385,6 +398,7 @@ function eftRef(){
   const ref = [n, p].filter(Boolean).join(" ");
   return ref || "Your name + cell";
 }
+let cardPaid = null; // {ref,total}
 let invoice = null; // {pr, sats, rand, status}
 function buildMessage(){
   const lines = all.filter(i=>qty[i.id]).map(i=>`${qty[i.id]} x ${i.name} — ${rand(i.price*qty[i.id])}`);
@@ -400,7 +414,7 @@ function buildMessage(){
   const name = $("#c-name").value.trim(), phone = $("#c-phone").value.trim(), note = $("#c-note").value.trim();
   if ($("#mode-deliver").checked){ const ad = $("#c-addr").value.trim(); m += "\n🚚 Delivery to: " + (ad || "(address to follow)"); }
   else m += "\n🏃 Collect";
-  m += $("#pay-btc").checked ? (invoice && invoice.status==="PAID" && invoice.rand===total ? "\n⚡ PAID with Bitcoin ✅ (" + invoice.sats + " sats, invoice …" + invoice.pr.slice(-8) + ")" : "\n⚡ Paying with Bitcoin (Lightning)") : $("#pay-eft").checked ? "\n🏦 Paying by EFT (ref: " + eftRef() + "), proof of payment attached" : "\n💵 Paying cash";
+  m += $("#pay-btc").checked ? (invoice && invoice.status==="PAID" && invoice.rand===total ? "\n⚡ PAID with Bitcoin ✅ (" + invoice.sats + " sats, invoice …" + invoice.pr.slice(-8) + ")" : "\n⚡ Paying with Bitcoin (Lightning)") : $("#pay-card").checked ? (cardPaid && cardPaid.total===total ? "\n💳 PAID by card ✅ (Yoco ref " + cardPaid.ref + ")" : "\n💳 Paying by CARD: please send me a Yoco payment link for " + rand(total)) : $("#pay-eft").checked ? "\n🏦 Paying by EFT (ref: " + eftRef() + "), proof of payment attached" : "\n💵 Paying cash";
   if (name) m += "\nName: " + name;
   if (phone) m += "\nCell: " + phone + (combos ? ` (stamp ${combos} combo${combos>1?"s":""} please)` : "");
   if (note) m += "\nNote: " + note;
@@ -418,6 +432,7 @@ function update(){
   $("#total").textContent = rand(r.total);
   $("#btc-amt").textContent = rand(r.total);
   $("#eft-amt").textContent = rand(r.total);
+  $("#card-amt").textContent = rand(r.total);
   $("#eft-ref").textContent = eftRef();
   $("#count").textContent = r.count + (r.count===1?" item":" items");
   send.removeAttribute("aria-disabled");
@@ -463,7 +478,7 @@ function showBtc(on){
   update();
 }
 $("#btc-open").onclick = () => { $("#pay-btc").checked = true; showBtc(true); $("#btc-panel").scrollIntoView({behavior:"smooth", block:"start"}); };
-document.querySelectorAll('input[name="pay"]').forEach(r=>r.addEventListener("change",()=>{ $("#eft-panel").hidden = !$("#pay-eft").checked; showBtc($("#pay-btc").checked); }));
+document.querySelectorAll('input[name="pay"]').forEach(r=>r.addEventListener("change",()=>{ $("#eft-panel").hidden = !$("#pay-eft").checked; $("#card-panel").hidden = !$("#pay-card").checked; showBtc($("#pay-btc").checked); }));
 function copyText(text, node, msg){
   navigator.clipboard.writeText(text).then(()=>toast(msg)).catch(()=>{ const sel=getSelection(), rg=document.createRange(); rg.selectNodeContents(node); sel.removeAllRanges(); sel.addRange(rg); toast("Selected. Copy it now"); });
 }
@@ -535,6 +550,7 @@ async function checkPaid(){
     if (st === "PAID"){
       invoice.status = "PAID"; clearInterval(pollT);
       $("#inv-box").hidden = true; $("#inv-paid").hidden = false; update(); toast("Payment received ✅");
+      try { const r = buildMessage(); if (r){ lastAlert = r.m; fetch("https://ntfy.sh/" + NTFY_TOPIC + "?title=" + encodeURIComponent("BTC PAID " + rand(r.total) + " - new order") + "&tags=zap&priority=urgent", {method:"POST", body:r.m, keepalive:true, mode:"no-cors"}).catch(()=>{}); } } catch(e){}
     } else if (st === "EXPIRED"){
       resetInvoice("That invoice expired. Get a new one.");
     }
@@ -552,10 +568,66 @@ $("#send").addEventListener("click", () => {
   lastAlert = r.m;
   const paid = invoice && invoice.status === "PAID" && invoice.rand === r.total;
   const where = $("#mode-deliver").checked ? "Delivery" : "Collect";
-  const title = "New order " + rand(r.total) + " - " + where + (paid ? " - BTC PAID" : "");
+  const title = "New order " + rand(r.total) + " - " + where + (paid ? " - BTC PAID" : (cardPaid && cardPaid.total===r.total) ? " - CARD PAID" : $("#pay-card").checked ? " - CARD: send Yoco link" : "");
   const url = "https://ntfy.sh/" + NTFY_TOPIC + "?title=" + encodeURIComponent(title) + "&tags=fries&priority=high";
   try { fetch(url, {method:"POST", body:r.m, keepalive:true, mode:"no-cors"}).catch(()=>{}); } catch(e){}
 });
+
+/* ===== Card payments (Yoco checkout via /api/checkout) ===== */
+const FORM_IDS = ["c-name","c-phone","c-note","c-addr"];
+function saveCart(){
+  const st = {qty, f:{}, deliver:$("#mode-deliver").checked, tyoks:$("#area-tyoks").checked,
+    sauces: SAUCES.map((x,i)=>$("#sauce-"+i).checked)};
+  FORM_IDS.forEach(id=>st.f[id]=$("#"+id).value);
+  try { sessionStorage.setItem("cf-cart", JSON.stringify(st)); } catch(e){}
+}
+function restoreCart(){
+  let st; try { st = JSON.parse(sessionStorage.getItem("cf-cart")||"null"); } catch(e){}
+  if (!st) return false;
+  Object.assign(qty, st.qty); ["wings","wingsonly","chips"].forEach(renderMenu);
+  FORM_IDS.forEach(id=>{ if (st.f[id] != null) $("#"+id).value = st.f[id]; });
+  (st.deliver ? $("#mode-deliver") : $("#mode-collect")).checked = true;
+  (st.tyoks ? $("#area-tyoks") : $("#area-other")).checked = true;
+  $("#addr-wrap").hidden = $("#area-wrap").hidden = !st.deliver;
+  (st.sauces||[]).forEach((v,i)=>{ const el=$("#sauce-"+i); if (el) el.checked = v; });
+  return true;
+}
+$("#card-pay").onclick = async () => {
+  const r = buildMessage();
+  if (!r){ $("#card-msg").textContent = "Add something from the menu first."; return; }
+  const btn = $("#card-pay"); btn.disabled = true; btn.textContent = "Opening secure payment…";
+  saveCart();
+  try {
+    const res = await fetch("/api/checkout", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({items: qty, deliver: $("#mode-deliver").checked, area: $("#area-tyoks").checked ? "tyoks" : "other"})});
+    const d = await res.json();
+    if (!res.ok || !d.url) throw new Error(d.error || "failed");
+    location.href = d.url;
+  } catch(e){
+    btn.disabled = false; btn.textContent = "💳 Pay now by card";
+    $("#card-msg").textContent = "Card payment isn't available right now. Send your order on WhatsApp and we'll send you a Yoco payment link instead.";
+  }
+};
+setTimeout(function handleCardReturn(){
+  const p = new URLSearchParams(location.search), st = p.get("card");
+  if (!st) return;
+  history.replaceState(null, "", location.pathname);
+  if (!restoreCart()) return;
+  $("#pay-card").checked = true; $("#card-panel").hidden = false; $("#eft-panel").hidden = true;
+  $("#btc-panel").hidden = true; $("#btc-open").hidden = false;
+  const r = buildMessage();
+  if (st === "paid" && r){
+    cardPaid = {ref: p.get("ref") || "", total: r.total};
+    $("#card-pay").hidden = true; $("#card-paid").hidden = false;
+    $("#card-msg").hidden = true;
+    update(); toast("Card payment received ✅");
+    try { const m = buildMessage().m; lastAlert = m; fetch("https://ntfy.sh/" + NTFY_TOPIC + "?title=" + encodeURIComponent("CARD PAID " + rand(r.total) + " - new order") + "&tags=credit_card&priority=urgent", {method:"POST", body:m, keepalive:true, mode:"no-cors"}).catch(()=>{}); } catch(e){}
+  } else {
+    update();
+    $("#card-msg").textContent = st === "cancelled" ? "Payment cancelled. Your order is still here: try again or choose another way to pay." : "The card payment didn't go through. Try again, or choose another way to pay.";
+  }
+  setTimeout(()=>$("#card-panel").scrollIntoView({block:"center"}), 300);
+}, 0);
 
 let toastT;
 function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,1800); }

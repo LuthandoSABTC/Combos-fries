@@ -1,6 +1,6 @@
 // Combos Fries: creates a Yoco card checkout for the exact order total.
 // Needs the Vercel environment variable YOCO_SECRET_KEY (from your Yoco account).
-const PRICES = { w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
+const PRICES = { fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "Use POST" }); return; }

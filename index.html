@@ -255,7 +255,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
         <span class="pill card-pill">Card · Yoco</span>
       </div>
       <button class="btn solid" id="card-pay" type="button">💳 Pay now by card</button>
-      <p class="note" id="card-msg">You'll pay on Yoco's secure page with your bank card, Apple Pay or Google Pay, then come straight back here.</p>
+      <p class="note" id="card-msg">Fill in your name and cell above, then tap to pay. You'll pay on Yoco's secure page with your bank card, Apple Pay or Google Pay, then come straight back here.</p>
       <div class="paid" id="card-paid" hidden>✅ Card payment done! Now tap <b>Send on WhatsApp</b> so we start frying.</div>
       <p class="note">Your card details go only to Yoco. We never see them.</p>
     </div>
@@ -595,11 +595,19 @@ function restoreCart(){
 $("#card-pay").onclick = async () => {
   const r = buildMessage();
   if (!r){ $("#card-msg").textContent = "Add something from the menu first."; return; }
+  const cname = $("#c-name").value.trim(), cphone = $("#c-phone").value.trim();
+  if (!cname || cphone.replace(/\D/g,"").length < 9){
+    $("#card-msg").textContent = "Please add your name and cell number under Your details first, so we know whose payment it is.";
+    (cname ? $("#c-phone") : $("#c-name")).focus(); return;
+  }
+  if ($("#mode-deliver").checked && !$("#c-addr").value.trim()){
+    $("#card-msg").textContent = "Please add your delivery address first."; $("#c-addr").focus(); return;
+  }
   const btn = $("#card-pay"); btn.disabled = true; btn.textContent = "Opening secure payment…";
   saveCart();
   try {
     const res = await fetch("/api/checkout", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({items: qty, deliver: $("#mode-deliver").checked, area: $("#area-tyoks").checked ? "tyoks" : "other"})});
+      body: JSON.stringify({items: qty, deliver: $("#mode-deliver").checked, area: $("#area-tyoks").checked ? "tyoks" : "other", name: cname, phone: cphone, address: $("#c-addr").value.trim()})});
     const d = await res.json();
     if (!res.ok || !d.url) throw new Error(d.error || "failed");
     location.href = d.url;

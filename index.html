@@ -24,6 +24,9 @@ img{max-width:100%}
 .plain-h{margin-top:14px}
 .card-pay{border-color:#1f6feb}
 .card-pill{background:#1f6feb;color:#fff}
+.privacy summary{cursor:pointer;font-weight:700;color:var(--muted)}
+.privacy p{margin:8px 0 0;font-size:.85rem;color:var(--muted);max-width:60ch}
+.note a{color:inherit}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -202,6 +205,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
     </div>
 
     <h2>Your details</h2>
+    <p class="note">We only use these for your order and loyalty card. See our <a href="#privacy" onclick="document.getElementById('privacy').open=true">privacy note</a>.</p>
     <div class="fields">
       <div class="full chips" id="area-wrap" hidden>
         <label><input type="radio" name="area" id="area-tyoks" value="Tyoks" checked><span>Tyoks · R10</span></label>
@@ -300,6 +304,12 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
           <table class="hours" id="hours"></table>
         </div>
       </div>
+      <details class="privacy" id="privacy">
+        <summary>🔒 Privacy note</summary>
+        <p>We only use your name, cell number and delivery address to prepare and deliver your order, to contact you about it, and to stamp your loyalty card. We don't sell or share your details with anyone else.</p>
+        <p>To work, your order passes through these services: WhatsApp (your order message), our order-alert app (so we see new orders), Yoco (card payments) and Blink (Bitcoin payments). We never see or keep your card details.</p>
+        <p>Want your details removed or corrected? WhatsApp us on 069 541 2295.</p>
+      </details>
       <p class="fine">Combos Fries · Hot · Fresh · Delicious · We accept cash, ⚡ Bitcoin, 💳 card and 🏦 EFT</p>
     </footer>
   </section>
@@ -318,7 +328,7 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
 /* ===== Shop settings: change these ===== */
 const SHOP_WHATSAPP = "27695412295";   // your WhatsApp number in international format, no + or spaces
 const STAMPS_FOR_FREE = 8;
-/* Trading hours (SAMPLE until confirmed). 0 = Sunday ... 6 = Saturday. null = closed that day. */
+/* Trading hours (confirmed by owner). 0 = Sunday ... 6 = Saturday. null = closed that day. */
 const HOURS = {1:["11:00","20:00"],2:["11:00","20:00"],3:["11:00","20:00"],4:["11:00","20:00"],5:["11:00","21:00"],6:["10:00","21:00"],0:["12:00","18:00"]};
 const LOCATION = "Tyoks";            // where you trade from
 const MAPS_URL = "https://maps.app.goo.gl/KAYNXmba4oXYpnzZ8";                 // paste a Google Maps link here to show the map button

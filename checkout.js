@@ -28,7 +28,12 @@ module.exports = async (req, res) => {
         successUrl: site + "/?card=paid&ref=" + ref,
         cancelUrl: site + "/?card=cancelled",
         failureUrl: site + "/?card=failed",
-        metadata: { ref, shop: "Combos Fries" }
+        metadata: {
+          ref, shop: "Combos Fries",
+          customerName: String(body.name || "").slice(0, 60),
+          customerPhone: String(body.phone || "").slice(0, 20),
+          delivery: body.deliver ? ("Delivery: " + String(body.address || "").slice(0, 120)) : "Collect"
+        }
       })
     });
     const data = await r.json().catch(() => ({}));

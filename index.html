@@ -167,6 +167,9 @@ input[type=text],input[type=tel]{font:500 1rem var(--body);padding:11px 12px;bor
 .hours td:last-child{text-align:right}
 .hours tr.today td{font-weight:700;color:var(--chilli)}
 .fine{font-size:.8rem;color:var(--muted)}
+.item.sold{opacity:.45}
+.item.sold .qty button{pointer-events:none}
+.sold-tag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:#c62828;color:#fff;font-size:.72em;font-weight:800;letter-spacing:.02em;vertical-align:middle}
 </style>
 
 </head>
@@ -381,6 +384,7 @@ const SAUCES = ["BBQ sauce","Tomato sauce","Chip dip","Jalapeño","Peri mayo","S
 
 const $ = s => document.querySelector(s);
 const qty = {};
+let SOLD = new Set(); /* filled from the Stock Google Sheet via /api/stock */
 const all = [...MENU.kota,...MENU.family,...MENU.wings,...MENU.russian,...MENU.chips];
 const rand = n => "R" + n.toLocaleString("en-ZA");
 const normPhone = v => { let d = String(v||"").replace(/\D/g,""); if (d.startsWith("0")) d = "27" + d.slice(1); return d; };
@@ -398,16 +402,36 @@ function renderMenu(key){
     const nm = row.querySelector(".name"); nm.textContent = it.name + " ";
     const pr = document.createElement("span"); pr.className="price"; pr.textContent = "· " + rand(it.price); nm.append(pr);
     row.querySelector(".desc").textContent = it.desc;
+    const sold = SOLD.has(it.id);
+    if (sold){ row.classList.add("sold"); const tg = document.createElement("span"); tg.className = "sold-tag"; tg.textContent = "Sold out today"; nm.append(tg); qty[it.id] = 0; }
     const out = row.querySelector("output");
     const sync = () => { out.textContent = qty[it.id]; out.classList.toggle("zero", !qty[it.id]); update(); };
     const [minus, plus] = row.querySelectorAll("button");
     minus.onclick = () => { qty[it.id] = Math.max(0, qty[it.id]-1); sync(); };
-    plus.onclick = () => { qty[it.id]++; sync(); };
+    plus.onclick = () => { if (SOLD.has(it.id)) { toast("Sorry, sold out today"); return; } qty[it.id]++; sync(); };
+    if (sold){ plus.disabled = minus.disabled = true; plus.setAttribute("aria-label","Sold out"); }
     out.textContent = qty[it.id]; out.classList.toggle("zero", !qty[it.id]);
     box.append(row);
   });
 }
 ["kota","family","wings","russian","chips"].forEach(renderMenu);
+
+/* Sold-out switch: checks the Stock sheet now and every minute */
+async function loadStock(){
+  try {
+    const r = await fetch("/api/stock", {cache:"no-store"});
+    if (!r.ok) return;
+    const d = await r.json();
+    const next = new Set(d.soldOut || []);
+    if ([...next].join() === [...SOLD].join()) return;
+    const removed = all.filter(i => next.has(i.id) && qty[i.id]).map(i => i.name);
+    SOLD = next;
+    ["kota","family","wings","russian","chips"].forEach(renderMenu);
+    update();
+    if (removed.length) setTimeout(() => toast("Sold out, removed from your order: " + removed.join(", ")), 0);
+  } catch(e){}
+}
+loadStock(); setInterval(loadStock, 60000);
 
 const sauceBox = $("#sauces");
 SAUCES.forEach((s,i)=>{

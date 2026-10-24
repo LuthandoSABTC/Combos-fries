@@ -1,6 +1,6 @@
 // Combos Fries: creates a Yoco card checkout for the exact order total.
 // Needs the Vercel environment variable YOCO_SECRET_KEY (from your Yoco account).
-const PRICES = { fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
+const PRICES = { k1:55, k2:85, wed4:50, thu_r:40, fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "Use POST" }); return; }
@@ -9,10 +9,13 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const items = body.items || {};
+    const today = new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Johannesburg",weekday:"short"}).format(new Date());
     let total = 0;
     for (const [id, q] of Object.entries(items)) {
       const qty = Math.max(0, Math.min(50, parseInt(q, 10) || 0));
       if (!PRICES[id]) continue;
+      if (id === "wed4" && today !== "Wed") continue; // Wing Wednesday only on Wednesdays
+      if (id === "thu_r" && today !== "Thu") continue; // Russian Thursday only on Thursdays
       total += PRICES[id] * qty;
     }
     if (total <= 0) { res.status(400).json({ error: "Your order is empty" }); return; }

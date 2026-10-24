@@ -1,5 +1,6 @@
 // Combos Fries: creates a Yoco card checkout for the exact order total.
 // Needs the Vercel environment variable YOCO_SECRET_KEY (from your Yoco account).
+const getSoldOut = require("./_soldout");
 const PRICES = { k1:55, k2:85, wed4:50, thu_r:40, fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
 
 module.exports = async (req, res) => {
@@ -10,6 +11,9 @@ module.exports = async (req, res) => {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const items = body.items || {};
     const today = new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Johannesburg",weekday:"short"}).format(new Date());
+    const soldOut = await getSoldOut();
+    const gone = Object.keys(items).filter(id => (parseInt(items[id], 10) || 0) > 0 && soldOut.includes(id));
+    if (gone.length) { res.status(409).json({ error: "Sorry, something in your order just sold out. Please refresh the page and try again.", soldOut: gone }); return; }
     let total = 0;
     for (const [id, q] of Object.entries(items)) {
       const qty = Math.max(0, Math.min(50, parseInt(q, 10) || 0));

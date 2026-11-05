@@ -1,6 +1,6 @@
 // Combos Fries: creates a Yoco card checkout for the exact order total.
 // Needs the Vercel environment variable YOCO_SECRET_KEY (from your Yoco account).
-const PRICES = { k1:55, k2:85, wed4:50, thu_r:40, fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
+const PRICES = { k1:45, k3:65, wed4:50, thu_r:40, fd:110, w1:40, w2:60, w3:75, r2:40, r3:55, s:25, m:30, l:45 };
 
 // Reads the "Stock" Google Sheet and returns the ids marked NO.
 // The sheet must be shared as "Anyone with the link: Viewer".
